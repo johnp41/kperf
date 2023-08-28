@@ -21,6 +21,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -240,9 +241,17 @@ func runScaleFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Sc
 		return 0, 0, fmt.Errorf("failed to get the cluster endpoint: %w", err)
 	}
 
+	//Get envs to send the request
+	endpoint_env := os.Getenv("ENDPOINT_URL")
+	host_env := os.Getenv("HOST_HEADER")
+
 	client := http.Client{}
-	req, _ := http.NewRequest("GET", endpoint, nil)
-	req.Host = svc.Status.RouteStatusFields.URL.URL().Host
+	req, _ := http.NewRequest("GET", endpoint_env, nil)
+	req.Host = host_env
+	fmt.Printf("Would send the request to %s now am gonna send it %s\n", endpoint, endpoint_env)
+	fmt.Printf("The header %s would be now will be %s\n", svc.Status.RouteStatusFields.URL.URL().Host, host_env)
+	//req, _ := http.NewRequest("GET", endpoint, nil)
+	//req.Host = svc.Status.RouteStatusFields.URL.URL().Host
 
 	start := time.Now()
 	go func() {
