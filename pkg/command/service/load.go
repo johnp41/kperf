@@ -168,12 +168,13 @@ func loadAndMeasure(ctx context.Context, params *pkg.PerfParams, inputs pkg.Load
 
 	var wg sync.WaitGroup
 	var m sync.Mutex
+	var st string = "10s"
 	wg.Add(count)
 	for i := 0; i < count; i++ {
 		go func(ndx int, m *sync.Mutex) {
 			defer wg.Done()
 
-			err := updateKsvc(ctx, ksvcClient, objs[ndx].Namespace, objs[ndx].Service.Name, strconv.FormatInt(int64(i), 10), InitialScale)
+			err := updateKsvc(ctx, ksvcClient, objs[ndx].Namespace, objs[ndx].Service.Name, st, InitialScale)
 			if err != nil {
 				fmt.Printf("failed to set stable window: %s", err)
 				return
