@@ -226,9 +226,9 @@ func runLoadFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Loa
 
 	endpoint_env := os.Getenv("ENDPOINT_URL")
 	//host_env := os.Getenv("HOST_HEADER")
-	fmt.Printf("Endpoint set to %s", endpoint_env)
+	fmt.Printf("Endpoint set to %s\n", endpoint_env)
 
-	fmt.Printf("The external tool will be like : hey -c %s -z %s -host %s %s", inputs.LoadConcurrency, inputs.LoadDuration, host, endpoint_env)
+	fmt.Printf(" The external tool will be like : hey -c %s -z %s -host %s %s \n", inputs.LoadConcurrency, inputs.LoadDuration, host, endpoint_env)
 
 	loadStart := time.Now()
 	log.Printf("Namespace %s, Service %s, load start\n", namespace, svc.Name)
