@@ -218,24 +218,27 @@ func runLoadFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Loa
 	pdch := make(chan struct{})  // pod duration channel
 	errch := make(chan error, 1)
 
-	endpoint, err := resolveEndpoint(ctx, params, inputs.ResolvableDomain, inputs.Https, svc)
+	//endpoint, err := resolveEndpoint(ctx, params, inputs.ResolvableDomain, inputs.Https, svc)
 	if err != nil {
 		return "", loadResult, fmt.Errorf("failed to get the cluster endpoint: %w", err)
 	}
 	host := svc.Status.RouteStatusFields.URL.URL().Host
+
+	endpoint_env := os.Getenv("ENDPOINT_URL")
+	//host_env := os.Getenv("HOST_HEADER")
 
 	loadStart := time.Now()
 	log.Printf("Namespace %s, Service %s, load start\n", namespace, svc.Name)
 
 	go func() {
 		if inputs.LoadTool == "default" {
-			loadOutput, err = runInternalVegeta(inputs, endpoint, host)
+			loadOutput, err = runInternalVegeta(inputs, endpoint_env, host)
 			if err != nil {
 				errch <- fmt.Errorf("failed to run internal load tool: %w", err)
 				return
 			}
 		} else {
-			loadOutput, err = runExternalLoadTool(inputs, namespace, svc.Name, endpoint, host)
+			loadOutput, err = runExternalLoadTool(inputs, namespace, svc.Name, endpoint_env, host)
 			if err != nil {
 				errch <- fmt.Errorf("failed to run external load tool: %w", err)
 				return
