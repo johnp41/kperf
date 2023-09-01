@@ -233,17 +233,28 @@ func runLoadFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Loa
 	pdch := make(chan struct{})  // pod duration channel
 	errch := make(chan error, 1)
 
+	//Endpoint will be taken from envs
 	//endpoint, err := resolveEndpoint(ctx, params, inputs.ResolvableDomain, inputs.Https, svc)
-	if err != nil {
-		return "", loadResult, fmt.Errorf("failed to get the cluster endpoint: %w", err)
-	}
+	// if err != nil {
+	// 	return "", loadResult, fmt.Errorf("failed to get the cluster endpoint: %w", err)
+	// }
+
 	host := svc.Status.RouteStatusFields.URL.URL().Host
 
 	endpoint_env := os.Getenv("ENDPOINT_URL")
+	//number of requests for the "hey" external load tool
+	s_num_requests_env := os.Getenv("N_REQUESTS")
+	num_requests, err := strconv.Atoi(s_num_requests_env)
+
+	if err != nil {
+		fmt.Println("Error during conversion")
+		return "", loadResult, errors.New(err.Error())
+	}
+
 	//host_env := os.Getenv("HOST_HEADER")
 	fmt.Printf("Endpoint set to %s\n", endpoint_env)
 
-	fmt.Printf(" The external tool will be like : hey -c %s -z %s -host %s %s \n", inputs.LoadConcurrency, inputs.LoadDuration, host, endpoint_env)
+	fmt.Printf(" The external tool will be like : hey -n %s -c %s -z %s -host %s %s \n", s_num_requests_env, inputs.LoadConcurrency, inputs.LoadDuration, host, endpoint_env)
 
 	loadStart := time.Now()
 	log.Printf("Namespace %s, Service %s, load start\n", namespace, svc.Name)
@@ -256,7 +267,7 @@ func runLoadFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Loa
 				return
 			}
 		} else {
-			loadOutput, err = runExternalLoadTool(inputs, namespace, svc.Name, endpoint_env, host)
+			loadOutput, err = runExternalLoadTool(inputs, namespace, svc.Name, endpoint_env, host, num_requests)
 			if err != nil {
 				errch <- fmt.Errorf("failed to run external load tool: %w", err)
 				return
@@ -365,9 +376,9 @@ func runInternalVegeta(inputs pkg.LoadArgs, endpoint string, host string) (outpu
 }
 
 // runExternalLoadTool runs external load test tool(wrk or hey) using command line, returns load output and error
-func runExternalLoadTool(inputs pkg.LoadArgs, namespace string, svcName string, endpoint string, host string) (output string, err error) {
+func runExternalLoadTool(inputs pkg.LoadArgs, namespace string, svcName string, endpoint string, host string, num_req int) (output string, err error) {
 	// Prepare command for load test tool
-	cmd, wrkLua, err := loadCmdBuilder(inputs, namespace, svcName, endpoint, host)
+	cmd, wrkLua, err := loadCmdBuilder(inputs, namespace, svcName, endpoint, host, num_req)
 	if err != nil {
 		return "", fmt.Errorf("failed to run loadCmdBuilder: %s", err)
 	}
@@ -392,11 +403,13 @@ func runExternalLoadTool(inputs pkg.LoadArgs, namespace string, svcName string, 
 }
 
 // loadCmdBuilder builds the command to run load tool, returns command and wrk lua script.
-func loadCmdBuilder(inputs pkg.LoadArgs, namespace string, svcName string, endpoint string, host string) (string, string, error) {
+func loadCmdBuilder(inputs pkg.LoadArgs, namespace string, svcName string, endpoint string, host string, num_req int) (string, string, error) {
 	var cmd strings.Builder
 	var wrkLuaFilename string
 	if strings.EqualFold(inputs.LoadTool, "hey") {
 		cmd.WriteString("hey")
+		cmd.WriteString(" -n ")
+		cmd.WriteString(strconv.Itoa(num_req))
 		cmd.WriteString(" -c ")
 		cmd.WriteString(inputs.LoadConcurrency)
 		cmd.WriteString(" -z ")
@@ -444,6 +457,7 @@ func getReplicaResult(replicaResults []pkg.LoadReplicaResult, event watch.Event,
 	if event.Type == watch.Modified && readyReplicas > len(replicaResults) {
 		replicaResult.ReplicaReadyTime = time.Now()
 		replicaResult.ReadyReplicasCount = readyReplicas
+		//apo tote pou ksekinise to load(hey) poso phre na ginei ready to replica
 		replicaResult.ReplicaReadyDuration = replicaResult.ReplicaReadyTime.Sub(loadStart).Seconds()
 		replicaResults = append(replicaResults, replicaResult)
 	}
@@ -467,6 +481,7 @@ func getPodResults(ctx context.Context, params *pkg.PerfParams, namespace string
 			continue
 		}
 		podReadyTime := PodReadyCondition.LastTransitionTime.Rfc3339Copy()
+		//poso xrono phre na mexri na ftasei sto ready
 		podReadyDuration := podReadyTime.Sub(podCreatedTime.Time).Seconds()
 		r.PodCreateTime = podCreatedTime
 		r.PodReadyTime = podReadyTime
