@@ -159,27 +159,27 @@ func loadAndMeasure(ctx context.Context, params *pkg.PerfParams, inputs pkg.Load
 	}
 	count := len(objs)
 
-	origin, err := updateAllowZeroInitialScale(ctx, params, "knative-serving", "true")
-	if err != nil {
-		fmt.Printf("failed to set allow-zero-initial-scale: %s", err)
-		return result, err
-	}
-	// restore configmap
-	defer updateAllowZeroInitialScale(ctx, params, "knative-serving", origin)
+	// origin, err := updateAllowZeroInitialScale(ctx, params, "knative-serving", "true")
+	// if err != nil {
+	// 	fmt.Printf("failed to set allow-zero-initial-scale: %s", err)
+	// 	return result, err
+	// }
+	// // restore configmap
+	// defer updateAllowZeroInitialScale(ctx, params, "knative-serving", origin)
 
 	var wg sync.WaitGroup
 	var m sync.Mutex
-	var st string = "10s"
+	// var st string = "10s"
 	wg.Add(count)
 	for i := 0; i < count; i++ {
 		go func(ndx int, m *sync.Mutex) {
 			defer wg.Done()
 
-			err := updateKsvc(ctx, ksvcClient, objs[ndx].Namespace, objs[ndx].Service.Name, st, InitialScale)
-			if err != nil {
-				fmt.Printf("failed to set stable window: %s", err)
-				return
-			}
+			// err := updateKsvc(ctx, ksvcClient, objs[ndx].Namespace, objs[ndx].Service.Name, st, InitialScale)
+			// if err != nil {
+			// 	fmt.Printf("failed to set stable window: %s", err)
+			// 	return
+			// }
 			loadToolOutput, loadResult, err := runLoadFromZero(ctx, params, inputs, objs[ndx].Namespace, objs[ndx].Service)
 			if err == nil {
 				// print result(load test tool output, replicas result, pods result)
