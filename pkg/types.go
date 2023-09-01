@@ -105,6 +105,7 @@ type LoadArgs struct {
 	LoadTool              string
 	LoadDuration          string
 	LoadConcurrency       string
+	Num_Reqs              string
 	Https                 bool
 }
 

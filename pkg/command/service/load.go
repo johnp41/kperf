@@ -88,6 +88,7 @@ kperf service load --namespace ktest --svc-prefix ktest --range 0,3 --load-tool 
 	serviceLoadCommand.Flags().StringVarP(&loadArgs.LoadDuration, "load-duration", "d", "60s", "Duration of the test for the load test tool")
 	serviceLoadCommand.Flags().StringVarP(&loadArgs.Output, "output", "o", ".", "Measure result location")
 	serviceLoadCommand.Flags().BoolVarP(&loadArgs.Https, "https", "", false, "Use https with TLS")
+	serviceLoadCommand.Flags().StringVarP(&loadArgs.Num_Reqs, "number-of-req", "", "", "Number of requests for the external load tool")
 
 	return serviceLoadCommand
 }
@@ -243,8 +244,8 @@ func runLoadFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Loa
 
 	endpoint_env := os.Getenv("ENDPOINT_URL")
 	//number of requests for the "hey" external load tool
-	s_num_requests_env := os.Getenv("N_REQUESTS")
-	num_requests, err := strconv.Atoi(s_num_requests_env)
+	// s_num_requests_env := os.Getenv("N_REQUESTS")
+	// num_requests, err := strconv.Atoi(s_num_requests_env)
 
 	if err != nil {
 		fmt.Println("Error during conversion")
@@ -254,7 +255,7 @@ func runLoadFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Loa
 	//host_env := os.Getenv("HOST_HEADER")
 	fmt.Printf("Endpoint set to %s\n", endpoint_env)
 
-	fmt.Printf(" The external tool will be like : hey -n %s -c %s -z %s -host %s %s \n", s_num_requests_env, inputs.LoadConcurrency, inputs.LoadDuration, host, endpoint_env)
+	fmt.Printf(" The external tool will be like : hey -n %s -c %s -z %s -host %s %s \n", inputs.Num_Reqs, inputs.LoadConcurrency, inputs.LoadDuration, host, endpoint_env)
 
 	loadStart := time.Now()
 	log.Printf("Namespace %s, Service %s, load start\n", namespace, svc.Name)
@@ -267,7 +268,7 @@ func runLoadFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Loa
 				return
 			}
 		} else {
-			loadOutput, err = runExternalLoadTool(inputs, namespace, svc.Name, endpoint_env, host, num_requests)
+			loadOutput, err = runExternalLoadTool(inputs, namespace, svc.Name, endpoint_env, host)
 			if err != nil {
 				errch <- fmt.Errorf("failed to run external load tool: %w", err)
 				return
@@ -376,9 +377,9 @@ func runInternalVegeta(inputs pkg.LoadArgs, endpoint string, host string) (outpu
 }
 
 // runExternalLoadTool runs external load test tool(wrk or hey) using command line, returns load output and error
-func runExternalLoadTool(inputs pkg.LoadArgs, namespace string, svcName string, endpoint string, host string, num_req int) (output string, err error) {
+func runExternalLoadTool(inputs pkg.LoadArgs, namespace string, svcName string, endpoint string, host string) (output string, err error) {
 	// Prepare command for load test tool
-	cmd, wrkLua, err := loadCmdBuilder(inputs, namespace, svcName, endpoint, host, num_req)
+	cmd, wrkLua, err := loadCmdBuilder(inputs, namespace, svcName, endpoint, host)
 	if err != nil {
 		return "", fmt.Errorf("failed to run loadCmdBuilder: %s", err)
 	}
@@ -403,13 +404,13 @@ func runExternalLoadTool(inputs pkg.LoadArgs, namespace string, svcName string, 
 }
 
 // loadCmdBuilder builds the command to run load tool, returns command and wrk lua script.
-func loadCmdBuilder(inputs pkg.LoadArgs, namespace string, svcName string, endpoint string, host string, num_req int) (string, string, error) {
+func loadCmdBuilder(inputs pkg.LoadArgs, namespace string, svcName string, endpoint string, host string) (string, string, error) {
 	var cmd strings.Builder
 	var wrkLuaFilename string
 	if strings.EqualFold(inputs.LoadTool, "hey") {
 		cmd.WriteString("hey")
 		cmd.WriteString(" -n ")
-		cmd.WriteString(strconv.Itoa(num_req))
+		cmd.WriteString(inputs.Num_Reqs)
 		cmd.WriteString(" -c ")
 		cmd.WriteString(inputs.LoadConcurrency)
 		cmd.WriteString(" -z ")
