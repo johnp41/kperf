@@ -55,7 +55,7 @@ const (
 func NewServiceFNMPCommand(p *pkg.PerfParams) *cobra.Command {
 	loadArgs := pkg.LoadArgs{}
 	serviceLoadCommand := &cobra.Command{
-		Use:   "load",
+		Use:   "fnmp",
 		Short: "Load test and Find maximum number of pods ran concurrently",
 		Long: `Scale Knative service from zero and measure the maximum number of pods deployed
 
