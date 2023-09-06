@@ -523,7 +523,7 @@ func setLoadFromZeroResult_fnmp(namespace string, svc *servingv1.Service, replic
 func getRunningPods(podList []corev1.Pod) int {
 	count := 0
 	for _, pd := range podList {
-		if checkContainersRunning(pd.Status.ContainerStatuses) {
+		if pd.Status.Phase == "Running" && checkContainersRunning(pd.Status.ContainerStatuses) {
 			count++
 		}
 	}
