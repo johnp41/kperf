@@ -140,7 +140,7 @@ func LoadServicesUpFromZero(params *pkg.PerfParams, inputs pkg.LoadArgs) error {
 	//Get env-for output-file name
 	st_cont_runt := os.Getenv("CONT_RUNTIME")
 	// generate CSV, HTML and JSON outputs from rows and loadFromZeroResult
-	err = GenerateOutput(inputs.Output, st_cont_runt+LoadOutputFilename, true, true, true, rows, loadFromZeroResult)
+	err = GenerateOutput(inputs.Output, "_"+st_cont_runt+LoadOutputFilename, true, true, true, rows, loadFromZeroResult)
 	if err != nil {
 		fmt.Printf("failed to generate output: %s\n", err)
 		return err

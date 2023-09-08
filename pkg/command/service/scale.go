@@ -137,7 +137,7 @@ func ScaleServicesUpFromZero(params *pkg.PerfParams, inputs pkg.ScaleArgs) error
 	st_cont_runt := os.Getenv("CONT_RUNTIME")
 
 	// generate CSV, HTML and JSON outputs from rows and scaleFromZeroResult
-	err = GenerateOutput(inputs.Output, st_cont_runt+OutputFilename, true, true, true, rows, scaleFromZeroResult)
+	err = GenerateOutput(inputs.Output, "_"+st_cont_runt+OutputFilename, true, true, true, rows, scaleFromZeroResult)
 	if err != nil {
 		fmt.Printf("failed to generate output: %s\n", err)
 		return err
