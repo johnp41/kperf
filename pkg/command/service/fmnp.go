@@ -17,6 +17,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"net/http"
@@ -102,7 +103,7 @@ func LoadServicesUpFromZero_fnmp(params *pkg.PerfParams, inputs pkg.LoadArgs) er
 	if err != nil {
 		return err
 	}
-	loadFromZeroResult, err := loadAndMeasure_fnmp(ctx, params, inputs, nsNameList, getServices)
+	loadFromZeroResult, max_nu_pod, err := loadAndMeasure_fnmp(ctx, params, inputs, nsNameList, getServices)
 	if err != nil {
 		return err
 	}
@@ -140,35 +141,55 @@ func LoadServicesUpFromZero_fnmp(params *pkg.PerfParams, inputs pkg.LoadArgs) er
 	}
 	rows = append([][]string{row}, rows...)
 
+	st_cont_runt := os.Getenv("CONT_RUNTIME")
+
 	// generate CSV, HTML and JSON outputs from rows and loadFromZeroResult
-	err = GenerateOutput(inputs.Output, FNMPOutputFilename, true, true, true, rows, loadFromZeroResult)
+	err = GenerateOutput(inputs.Output, "_"+st_cont_runt+FNMPOutputFilename, true, true, true, rows, loadFromZeroResult)
 	if err != nil {
 		fmt.Printf("failed to generate output: %s\n", err)
 		return err
 	}
 
+	generateCSV(inputs.Output, "_"+st_cont_runt+FNMPOutputFilename, max_nu_pod)
 	return nil
 }
 
-func loadAndMeasure_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg.LoadArgs, nsNameList []string, servicesListFunc func(context.Context, servingv1client.ServingV1Interface, []string, string, string, string) ([]ServicesToScale, error)) (pkg.LoadResult, error) {
+func generateCSV(output_dir string, outputFilename string, max_nu_pods int) {
+	outputPathPrefix, err := GenerateOutputPathPrefix(output_dir, outputFilename)
+
+	// Create a new CSV file
+	file, err := os.Create(outputPathPrefix + "max_pods.csv")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	// Create a CSV writer
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Write the integer to the CSV file
+	err = writer.Write([]string{strconv.Itoa(max_nu_pods)})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Measurement of maximum concurrent pods saved  in CSV file %s\n", outputPathPrefix+"max_pods.csv")
+
+}
+
+func loadAndMeasure_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg.LoadArgs, nsNameList []string, servicesListFunc func(context.Context, servingv1client.ServingV1Interface, []string, string, string, string) ([]ServicesToScale, error)) (pkg.LoadResult, int, error) {
 	result := pkg.LoadResult{}
 	ksvcClient, err := params.NewServingClient()
+	var max_nu_pod int
 	if err != nil {
-		return result, err
+		return result, max_nu_pod, err
 	}
 	objs, err := servicesListFunc(ctx, ksvcClient, nsNameList, inputs.SvcPrefix, inputs.SvcRange, inputs.Svc)
 	if err != nil {
-		return result, err
+		return result, max_nu_pod, err
 	}
 	count := len(objs)
-
-	// origin, err := updateAllowZeroInitialScale(ctx, params, "knative-serving", "true")
-	// if err != nil {
-	// 	fmt.Printf("failed to set allow-zero-initial-scale: %s", err)
-	// 	return result, err
-	// }
-	// // restore configmap
-	// defer updateAllowZeroInitialScale(ctx, params, "knative-serving", origin)
 
 	var wg sync.WaitGroup
 	var m sync.Mutex
@@ -199,7 +220,7 @@ func loadAndMeasure_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg
 					for i := 0; i < len(loadResult.PodResults); i++ {
 						fmt.Printf("%4d\t%23.1f\n", i, loadResult.PodResults[i].PodReadyDuration)
 					}
-					fmt.Printf("\n[Verbose] Max number of pods running is (%s)\n", max_nu_pod)
+					fmt.Printf("\n[Verbose] Max number of pods running is (%d)\n", max_nu_pod)
 					fmt.Printf("\n---------------------------------------------------------------------------------\n")
 				}
 				m.Lock()
@@ -212,7 +233,7 @@ func loadAndMeasure_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg
 	}
 	wg.Wait()
 
-	return result, nil
+	return result, max_nu_pod, nil
 }
 
 func runLoadFromZero_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg.LoadArgs, namespace string, svc *servingv1.Service) (
@@ -289,8 +310,6 @@ func runLoadFromZero_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pk
 	var max_nu_pod int
 	for {
 		select {
-		//case event := <-rdch:
-		//replicaResults = getReplicaResult_fnmp(replicaResults, event, loadStart)
 		case <-pdch:
 			podResults, max_nu_pod, err = getPodResults_fnmp(ctx, params, namespace, svc)
 			if err != nil {
