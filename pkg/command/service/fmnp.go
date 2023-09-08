@@ -150,7 +150,7 @@ func LoadServicesUpFromZero_fnmp(params *pkg.PerfParams, inputs pkg.LoadArgs) er
 		return err
 	}
 
-	generateCSV(inputs.Output, "_"+st_cont_runt+FNMPOutputFilename, max_nu_pod)
+	generateCSV(inputs.Output, "_"+st_cont_runt+"_"+FNMPOutputFilename, max_nu_pod)
 	return nil
 }
 
@@ -193,6 +193,8 @@ func loadAndMeasure_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg
 
 	var wg sync.WaitGroup
 	var m sync.Mutex
+	chint := make(chan int)
+
 	// var st string = "10s"
 	wg.Add(count)
 	for i := 0; i < count; i++ {
@@ -222,6 +224,7 @@ func loadAndMeasure_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg
 					}
 					fmt.Printf("\n[Verbose] Max number of pods running is (%d)\n", max_nu_pod)
 					fmt.Printf("\n---------------------------------------------------------------------------------\n")
+					chint <- max_nu_pod
 				}
 				m.Lock()
 				result.Measurment = append(result.Measurment, loadResult)
@@ -232,6 +235,7 @@ func loadAndMeasure_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg
 		}(i, &m)
 	}
 	wg.Wait()
+	max_nu_pod = <-chint
 
 	return result, max_nu_pod, nil
 }
