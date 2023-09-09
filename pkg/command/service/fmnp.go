@@ -103,7 +103,7 @@ func LoadServicesUpFromZero_fnmp(params *pkg.PerfParams, inputs pkg.LoadArgs) er
 	if err != nil {
 		return err
 	}
-	loadFromZeroResult, max_nu_pod, err := loadAndMeasure_fnmp(ctx, params, inputs, nsNameList, getServices)
+	loadFromZeroResult, _, err := loadAndMeasure_fnmp(ctx, params, inputs, nsNameList, getServices)
 	if err != nil {
 		return err
 	}
@@ -150,11 +150,12 @@ func LoadServicesUpFromZero_fnmp(params *pkg.PerfParams, inputs pkg.LoadArgs) er
 		return err
 	}
 
-	generateCSV(inputs.Output, "_"+st_cont_runt+"_"+FNMPOutputFilename, max_nu_pod)
+	generateCSV_max_no_pods(inputs.Output, "_"+st_cont_runt+"_"+FNMPOutputFilename, loadFromZeroResult)
+
 	return nil
 }
 
-func generateCSV(output_dir string, outputFilename string, max_nu_pods int) {
+func generateCSV_max_no_pods(output_dir string, outputFilename string, loadFromZeroResult pkg.FmnpResult) {
 	outputPathPrefix, err := GenerateOutputPathPrefix(output_dir, outputFilename)
 
 	// Create a new CSV file
@@ -168,18 +169,20 @@ func generateCSV(output_dir string, outputFilename string, max_nu_pods int) {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// Write the integer to the CSV file
-	err = writer.Write([]string{strconv.Itoa(max_nu_pods)})
-	if err != nil {
-		panic(err)
+	// Write the CSV header
+	header := []string{"Service name", "max_nu_of_pods"}
+	writer.Write(header)
+
+	for _, val := range loadFromZeroResult.Measurment {
+		record := []string{val.ServiceName + "_" + val.ServiceNamespace, fmt.Sprintf("%d", val.MaxNuPods)}
+		writer.Write(record)
 	}
 
 	fmt.Printf("Measurement of maximum concurrent pods saved  in CSV file %s\n", outputPathPrefix+"max_pods.csv")
-
 }
 
-func loadAndMeasure_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg.LoadArgs, nsNameList []string, servicesListFunc func(context.Context, servingv1client.ServingV1Interface, []string, string, string, string) ([]ServicesToScale, error)) (pkg.LoadResult, int, error) {
-	result := pkg.LoadResult{}
+func loadAndMeasure_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg.LoadArgs, nsNameList []string, servicesListFunc func(context.Context, servingv1client.ServingV1Interface, []string, string, string, string) ([]ServicesToScale, error)) (pkg.FmnpResult, int, error) {
+	result := pkg.FmnpResult{}
 	ksvcClient, err := params.NewServingClient()
 	var max_nu_pod int
 	if err != nil {
@@ -193,19 +196,12 @@ func loadAndMeasure_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg
 
 	var wg sync.WaitGroup
 	var m sync.Mutex
-	chint := make(chan int)
-
 	// var st string = "10s"
 	wg.Add(count)
 	for i := 0; i < count; i++ {
 		go func(ndx int, m *sync.Mutex) {
 			defer wg.Done()
 
-			// err := updateKsvc(ctx, ksvcClient, objs[ndx].Namespace, objs[ndx].Service.Name, st, InitialScale)
-			// if err != nil {
-			// 	fmt.Printf("failed to set stable window: %s", err)
-			// 	return
-			// }
 			loadToolOutput, loadResult, max_nu_pod, err := runLoadFromZero_fnmp(ctx, params, inputs, objs[ndx].Namespace, objs[ndx].Service)
 			if err == nil {
 				// print result(load test tool output, replicas result, pods result)
@@ -224,7 +220,6 @@ func loadAndMeasure_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg
 					}
 					fmt.Printf("\n[Verbose] Max number of pods running is (%d)\n", max_nu_pod)
 					fmt.Printf("\n---------------------------------------------------------------------------------\n")
-					chint <- max_nu_pod
 				}
 				m.Lock()
 				result.Measurment = append(result.Measurment, loadResult)
@@ -235,18 +230,17 @@ func loadAndMeasure_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg
 		}(i, &m)
 	}
 	wg.Wait()
-	max_nu_pod = <-chint
 
 	return result, max_nu_pod, nil
 }
 
 func runLoadFromZero_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pkg.LoadArgs, namespace string, svc *servingv1.Service) (
-	string, pkg.LoadFromZeroResult, int, error) {
+	string, pkg.FmnpFromZeroResult, int, error) {
 	selector := labels.SelectorFromSet(labels.Set{
 		serving.ServiceLabelKey: svc.Name,
 	})
 	var loadOutput string
-	var loadResult pkg.LoadFromZeroResult
+	var loadResult pkg.FmnpFromZeroResult
 	var replicaResults []pkg.LoadReplicaResult
 	var podResults []pkg.LoadPodResult
 
@@ -263,25 +257,15 @@ func runLoadFromZero_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pk
 	pdch := make(chan struct{}) // pod duration channel
 	errch := make(chan error, 1)
 
-	//Endpoint will be taken from envs
-	//endpoint, err := resolveEndpoint(ctx, params, inputs.ResolvableDomain, inputs.Https, svc)
-	// if err != nil {
-	// 	return "", loadResult, fmt.Errorf("failed to get the cluster endpoint: %w", err)
-	// }
-
 	host := svc.Status.RouteStatusFields.URL.URL().Host
 
 	endpoint_env := os.Getenv("ENDPOINT_URL")
-	//number of requests for the "hey" external load tool
-	// s_num_requests_env := os.Getenv("N_REQUESTS")
-	// num_requests, err := strconv.Atoi(s_num_requests_env)
 
 	if err != nil {
 		fmt.Println("Error during conversion")
 		return "", loadResult, 0, errors.New(err.Error())
 	}
 
-	//host_env := os.Getenv("HOST_HEADER")
 	fmt.Printf("Endpoint set to %s\n", endpoint_env)
 
 	fmt.Printf(" The external tool will be like : hey -n %s -c %s -z %s -host %s %s \n", inputs.Num_Reqs, inputs.LoadConcurrency, inputs.LoadDuration, host, endpoint_env)
@@ -321,6 +305,7 @@ func runLoadFromZero_fnmp(ctx context.Context, params *pkg.PerfParams, inputs pk
 			}
 			// set loadResult
 			loadResult = setLoadFromZeroResult_fnmp(namespace, svc, replicaResults, podResults)
+			loadResult.MaxNuPods = max_nu_pod
 			return loadOutput, loadResult, max_nu_pod, nil
 		case err := <-errch:
 			return "", loadResult, max_nu_pod, err
@@ -343,7 +328,7 @@ func getSvcPods_fnmp(ctx context.Context, params *pkg.PerfParams, namespace stri
 }
 
 // getReplicasCount gets the maximum count of replicas in each service and the maximum count of replicas in all services
-func getReplicasCount_fnmp(loadResult pkg.LoadResult) (int, []int) {
+func getReplicasCount_fnmp(loadResult pkg.FmnpResult) (int, []int) {
 	var maxReplicasCount int     // the maximum count in replicasCountList
 	replicasCountList := []int{} // the maximum replicas count in each service
 	for _, m := range loadResult.Measurment {
@@ -523,8 +508,8 @@ func getPodResults_fnmp(ctx context.Context, params *pkg.PerfParams, namespace s
 }
 
 // setLoadFromZeroResult sets every item of LoadFromZeroResult
-func setLoadFromZeroResult_fnmp(namespace string, svc *servingv1.Service, replicaResults []pkg.LoadReplicaResult, podResults []pkg.LoadPodResult) pkg.LoadFromZeroResult {
-	var loadResult pkg.LoadFromZeroResult
+func setLoadFromZeroResult_fnmp(namespace string, svc *servingv1.Service, replicaResults []pkg.LoadReplicaResult, podResults []pkg.LoadPodResult) pkg.FmnpFromZeroResult {
+	var loadResult pkg.FmnpFromZeroResult
 	var totalReadyReplicas int
 	for _, value := range replicaResults {
 		if value.ReadyReplicasCount > totalReadyReplicas {

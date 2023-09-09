@@ -150,6 +150,11 @@ type LoadResult struct {
 	Measurment  []LoadFromZeroResult
 }
 
+type FmnpResult struct {
+	KnativeInfo KnativeInfo
+	Measurment  []FmnpFromZeroResult
+}
+
 type LoadFromZeroResult struct {
 	ServiceName        string
 	ServiceNamespace   string
@@ -157,6 +162,16 @@ type LoadFromZeroResult struct {
 	TotalReadyPods     int
 	ReplicaResults     []LoadReplicaResult
 	PodResults         []LoadPodResult
+}
+
+type FmnpFromZeroResult struct {
+	ServiceName        string
+	ServiceNamespace   string
+	TotalReadyReplicas int
+	TotalReadyPods     int
+	ReplicaResults     []LoadReplicaResult
+	PodResults         []LoadPodResult
+	MaxNuPods          int
 }
 
 type LoadReplicaResult struct {
