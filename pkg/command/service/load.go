@@ -179,9 +179,8 @@ func saveLoadToolOutputToFile(output []string, output_dir string, filename strin
 		}
 	}
 
-	// Write the string data to the file
-
-	fmt.Printf("String saved to %s\n", output_dir+"/"+filename)
+	// Write the strings data to the file
+	fmt.Printf("Strings saved to %s\n", output_dir+"/"+filename)
 	return nil
 
 }
@@ -222,6 +221,7 @@ func loadAndMeasure(ctx context.Context, params *pkg.PerfParams, inputs pkg.Load
 					fmt.Printf("\n---------------------------------------------------------------------------------\n")
 				}
 				m.Lock()
+				loadResult.LoadToolOutput = loadToolOutput
 				result.Measurment = append(result.Measurment, loadResult)
 				m.Unlock()
 			} else {
