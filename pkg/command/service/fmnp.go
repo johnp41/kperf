@@ -50,7 +50,7 @@ import (
 )
 
 const (
-	FNMPOutputFilename = "ksvc_fnmp_loading_time"
+	FNMPOutputFilename = "ksvc_fnmp_time"
 )
 
 func NewServiceFNMPCommand(p *pkg.PerfParams) *cobra.Command {

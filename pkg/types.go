@@ -162,6 +162,7 @@ type LoadFromZeroResult struct {
 	TotalReadyPods     int
 	ReplicaResults     []LoadReplicaResult
 	PodResults         []LoadPodResult
+	LoadToolOutput     string
 }
 
 type FmnpFromZeroResult struct {

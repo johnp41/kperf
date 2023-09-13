@@ -99,7 +99,7 @@ func LoadServicesUpFromZero(params *pkg.PerfParams, inputs pkg.LoadArgs) error {
 	if err != nil {
 		return err
 	}
-	loadFromZeroResult, err := loadAndMeasure(ctx, params, inputs, nsNameList, getServices)
+	loadFromZeroResult, loadToolOutput, err := loadAndMeasure(ctx, params, inputs, nsNameList, getServices)
 	if err != nil {
 		return err
 	}
@@ -146,45 +146,66 @@ func LoadServicesUpFromZero(params *pkg.PerfParams, inputs pkg.LoadArgs) error {
 		return err
 	}
 
+	filename := st_cont_runt + "_" + LoadOutputFilename + ".txt"
+	//Save output of load Tool
+	err = saveLoadToolOutputToFile(loadToolOutput, inputs.Output, filename)
+	if err != nil {
+		fmt.Printf("failed to generate output: %s\n for file %s\n", err, filename)
+		return err
+	}
 	return nil
 }
 
-func loadAndMeasure(ctx context.Context, params *pkg.PerfParams, inputs pkg.LoadArgs, nsNameList []string, servicesListFunc func(context.Context, servingv1client.ServingV1Interface, []string, string, string, string) ([]ServicesToScale, error)) (pkg.LoadResult, error) {
+// write loadToolOutputs to sting
+// List is because of the many different services outputs
+func saveLoadToolOutputToFile(output []string, output_dir string, filename string) error {
+
+	// Create or open the file for writing
+	file, err := os.Create(output_dir + "/" + filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Write the string data to the file
+	for _, val := range output {
+		_, err = file.WriteString(val)
+		if err != nil {
+			return err
+		}
+		_, err = file.WriteString("\n")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Write the string data to the file
+
+	fmt.Printf("String saved to %s\n", output_dir+"/"+filename)
+	return nil
+
+}
+
+func loadAndMeasure(ctx context.Context, params *pkg.PerfParams, inputs pkg.LoadArgs, nsNameList []string, servicesListFunc func(context.Context, servingv1client.ServingV1Interface, []string, string, string, string) ([]ServicesToScale, error)) (pkg.LoadResult, []string, error) {
 	result := pkg.LoadResult{}
 	ksvcClient, err := params.NewServingClient()
 	if err != nil {
-		return result, err
+		return result, nil, err
 	}
 	objs, err := servicesListFunc(ctx, ksvcClient, nsNameList, inputs.SvcPrefix, inputs.SvcRange, inputs.Svc)
 	if err != nil {
-		return result, err
+		return result, nil, err
 	}
 	count := len(objs)
-
-	// origin, err := updateAllowZeroInitialScale(ctx, params, "knative-serving", "true")
-	// if err != nil {
-	// 	fmt.Printf("failed to set allow-zero-initial-scale: %s", err)
-	// 	return result, err
-	// }
-	// // restore configmap
-	// defer updateAllowZeroInitialScale(ctx, params, "knative-serving", origin)
-
 	var wg sync.WaitGroup
 	var m sync.Mutex
-	// var st string = "10s"
 	wg.Add(count)
 	for i := 0; i < count; i++ {
 		go func(ndx int, m *sync.Mutex) {
 			defer wg.Done()
 
-			// err := updateKsvc(ctx, ksvcClient, objs[ndx].Namespace, objs[ndx].Service.Name, st, InitialScale)
-			// if err != nil {
-			// 	fmt.Printf("failed to set stable window: %s", err)
-			// 	return
-			// }
 			loadToolOutput, loadResult, err := runLoadFromZero(ctx, params, inputs, objs[ndx].Namespace, objs[ndx].Service)
 			if err == nil {
-				// print result(load test tool output, replicas result, pods result)
 				if inputs.Verbose {
 					fmt.Printf("\n[Verbose] Namespace %s, Service %s:\n", loadResult.ServiceNamespace, loadResult.ServiceName)
 					fmt.Printf("\n[Verbose] Load tool(%s) output:\n%s\n", inputs.LoadTool, loadToolOutput)
@@ -210,7 +231,12 @@ func loadAndMeasure(ctx context.Context, params *pkg.PerfParams, inputs pkg.Load
 	}
 	wg.Wait()
 
-	return result, nil
+	var st_list []string
+	for _, val := range result.Measurment {
+		st_list = append(st_list, val.LoadToolOutput)
+	}
+
+	return result, st_list, nil
 }
 
 func runLoadFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.LoadArgs, namespace string, svc *servingv1.Service) (
@@ -294,6 +320,7 @@ func runLoadFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Loa
 				return loadOutput, loadResult, err
 			}
 			// set loadResult
+			loadResult.LoadToolOutput = loadOutput
 			loadResult = setLoadFromZeroResult(namespace, svc, replicaResults, podResults)
 			return loadOutput, loadResult, nil
 		case err := <-errch:
