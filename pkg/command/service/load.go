@@ -148,7 +148,7 @@ func LoadServicesUpFromZero(params *pkg.PerfParams, inputs pkg.LoadArgs) error {
 		return err
 	}
 
-	filename := st_cont_runt + "_" + LoadOutputFilename + ".txt"
+	filename := "conc_step_" + st_conc_step + "_" + st_cont_runt + "_" + LoadOutputFilename + ".txt"
 	//Save output of load Tool
 	err = saveLoadToolOutputToFile(loadToolOutput, inputs.Output, filename)
 	if err != nil {
