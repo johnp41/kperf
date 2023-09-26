@@ -246,7 +246,8 @@ func runScaleFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Sc
 
 	//Get envs to send the request
 	endpoint_env := os.Getenv("ENDPOINT_URL")
-	host_env := os.Getenv("HOST_HEADER")
+	//host_env := os.Getenv("HOST_HEAzDER")
+	host_env := svc.Status.RouteStatusFields.URL.URL().Host
 
 	client := http.Client{}
 	req, _ := http.NewRequest("GET", endpoint_env, nil)
