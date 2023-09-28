@@ -137,18 +137,21 @@ func LoadServicesUpFromZero(params *pkg.PerfParams, inputs pkg.LoadArgs) error {
 	}
 	rows = append([][]string{row}, rows...)
 
-	//Get env-for output-file name
+	//Get envs-for output-file name
 	st_cont_runt := os.Getenv("CONT_RUNTIME")
-
 	st_conc_step := os.Getenv("CONCURRENCY_STEP")
+	st_ksvc_num := os.Getenv("NUM_OF_KSVCs")
+
+	st_name := "num_of_ksvcs_" + st_ksvc_num + "conc_step_" + st_conc_step + "_" + st_cont_runt + "_"
+
 	// generate CSV, HTML and JSON outputs from rows and loadFromZeroResult
-	err = GenerateOutput(inputs.Output, "conc_step_"+st_conc_step+"_"+st_cont_runt+LoadOutputFilename, true, true, true, rows, loadFromZeroResult)
+	err = GenerateOutput(inputs.Output, st_name+LoadOutputFilename, true, true, true, rows, loadFromZeroResult)
 	if err != nil {
 		fmt.Printf("failed to generate output: %s\n", err)
 		return err
 	}
 
-	filename := "conc_step_" + st_conc_step + "_" + st_cont_runt + "_" + LoadOutputFilename + ".txt"
+	filename := st_name + LoadOutputFilename + ".txt"
 	//Save output of load Tool
 	err = saveLoadToolOutputToFile(loadToolOutput, inputs.Output, filename)
 	if err != nil {
@@ -263,12 +266,6 @@ func runLoadFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Loa
 	rdch := watcher.ResultChan() // replica duration channel
 	pdch := make(chan struct{})  // pod duration channel
 	errch := make(chan error, 1)
-
-	//Endpoint will be taken from envs
-	//endpoint, err := resolveEndpoint(ctx, params, inputs.ResolvableDomain, inputs.Https, svc)
-	// if err != nil {
-	// 	return "", loadResult, fmt.Errorf("failed to get the cluster endpoint: %w", err)
-	// }
 
 	host := svc.Status.RouteStatusFields.URL.URL().Host
 

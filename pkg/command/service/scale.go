@@ -135,9 +135,13 @@ func ScaleServicesUpFromZero(params *pkg.PerfParams, inputs pkg.ScaleArgs) error
 
 	//Get env-for output-file name
 	st_cont_runt := os.Getenv("CONT_RUNTIME")
+	st_conc_step := os.Getenv("CONCURRENCY_STEP")
+	st_ksvc_num := os.Getenv("NUM_OF_KSVCs")
+
+	st_name := "num_of_ksvcs_" + st_ksvc_num + "conc_step_" + st_conc_step + "_" + st_cont_runt + "_"
 
 	// generate CSV, HTML and JSON outputs from rows and scaleFromZeroResult
-	err = GenerateOutput(inputs.Output, "_"+st_cont_runt+OutputFilename, true, true, true, rows, scaleFromZeroResult)
+	err = GenerateOutput(inputs.Output, st_name+OutputFilename, true, true, true, rows, scaleFromZeroResult)
 	if err != nil {
 		fmt.Printf("failed to generate output: %s\n", err)
 		return err
@@ -246,7 +250,6 @@ func runScaleFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Sc
 
 	//Get envs to send the request
 	endpoint_env := os.Getenv("ENDPOINT_URL")
-	//host_env := os.Getenv("HOST_HEAzDER")
 	host_env := svc.Status.RouteStatusFields.URL.URL().Host
 
 	client := http.Client{}
@@ -254,8 +257,6 @@ func runScaleFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Sc
 	req.Host = host_env
 	fmt.Printf("Would send the request to %s now am gonna send it %s\n", endpoint, endpoint_env)
 	fmt.Printf("The header %s would be now will be %s\n", svc.Status.RouteStatusFields.URL.URL().Host, host_env)
-	//req, _ := http.NewRequest("GET", endpoint, nil)
-	//req.Host = svc.Status.RouteStatusFields.URL.URL().Host
 
 	start := time.Now()
 	go func() {
