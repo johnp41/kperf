@@ -36,6 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 
 	"knative.dev/kperf/pkg"
+	"knative.dev/kperf/pkg/config"
 
 	"knative.dev/serving/pkg/apis/serving"
 	servingv1 "knative.dev/serving/pkg/apis/serving/v1"
@@ -66,8 +67,9 @@ For example:
 kperf service scale --svc-perfix svc --range 1,200 --namespace ns --concurrency 20
 `,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if cmd.Flags().NFlag() == 0 {
-				return fmt.Errorf("'service scale' requires flag(s)")
+			err := config.BindFlags(cmd, "service.scale.", nil)
+			if err != nil {
+				return err
 			}
 			return nil
 		},
