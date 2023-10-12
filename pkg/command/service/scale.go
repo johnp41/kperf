@@ -175,6 +175,11 @@ func scaleAndMeasure(ctx context.Context, params *pkg.PerfParams, inputs pkg.Sca
 	var wg sync.WaitGroup
 	var m sync.Mutex
 	wg.Add(count)
+	// For every service a go func to
+	// update stable window,
+	// initial scale
+	//and start a go fun for  Poll(client, req, inputs.MaxRetries, inputs.RequestInterval,
+	// inputs.RequestTimeout, endpoint_env)
 	for i := 0; i < count; i++ {
 		go func(ndx int, m *sync.Mutex) {
 			defer wg.Done()
@@ -295,6 +300,7 @@ func runScaleFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Sc
 func Poll(httpClient http.Client, request *http.Request, maxRetries int, requestInterval time.Duration, requestTimeout time.Duration, url string) (*Response, error) {
 	var resp *Response
 	retries := 0
+	fmt.Println("Will send request via poll to host..." + request.Host)
 	err := wait.PollImmediate(requestInterval, requestTimeout, func() (bool, error) {
 		rawResp, err := httpClient.Do(request)
 		if err != nil {
