@@ -261,7 +261,7 @@ func runScaleFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Sc
 	host_env := svc.Status.RouteStatusFields.URL.URL().Host
 
 	//Give timeout to client
-	client := http.Client{Timeout: inputs.ScaleClientTimeout * time.Second}
+	client := http.Client{Timeout: 2 * time.Second}
 
 	req, _ := http.NewRequest("GET", endpoint_env, nil)
 	req.Host = host_env
@@ -303,7 +303,7 @@ func runScaleFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Sc
 func Poll(httpClient http.Client, request *http.Request, maxRetries int, requestInterval time.Duration, requestTimeout time.Duration, url string) (*Response, error) {
 	var resp *Response
 	retries := 0
-	fmt.Println("Will send request via poll to host..." + request.Host)
+	//fmt.Println("Will send request via poll to host..." + request.Host)
 	err := wait.PollImmediate(requestInterval, requestTimeout, func() (bool, error) {
 		rawResp, err := httpClient.Do(request)
 		if err != nil {
