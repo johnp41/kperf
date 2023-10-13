@@ -91,6 +91,7 @@ kperf service scale --svc-perfix svc --range 1,200 --namespace ns --concurrency 
 	serviceScaleCommand.Flags().IntVarP(&scaleArgs.MaxRetries, "MaxRetries", "", 10, "Maximum number of trying to poll the service")
 	serviceScaleCommand.Flags().DurationVarP(&scaleArgs.RequestInterval, "wait", "", 2*time.Second, "Time to wait before retring to call the Knatice Service")
 	serviceScaleCommand.Flags().DurationVarP(&scaleArgs.RequestTimeout, "timeout", "", 2*time.Second, "Duration to wait for Knative Service to be ready")
+	serviceScaleCommand.Flags().DurationVarP(&scaleArgs.ScaleClientTimeout, "scale-client-timeout", "", 2*time.Second, "Timeout for http scale client")
 	serviceScaleCommand.Flags().BoolVarP(&scaleArgs.Https, "https", "", false, "Use https with TLS")
 	serviceScaleCommand.Flags().IntVarP(&scaleArgs.Iterations, "iterations", "i", 1, "Number of iterations to invoke the service")
 	serviceScaleCommand.Flags().DurationVarP(&scaleArgs.TimeInterval, "time-interval", "T", 10*time.Second, "The time interval of each scale up, recommend to set it no less than the sum of the stable window and cold startup time")
@@ -259,7 +260,9 @@ func runScaleFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Sc
 	endpoint_env := os.Getenv("ENDPOINT_URL")
 	host_env := svc.Status.RouteStatusFields.URL.URL().Host
 
-	client := http.Client{}
+	//Give timeout to client
+	client := http.Client{Timeout: inputs.ScaleClientTimeout * time.Second}
+
 	req, _ := http.NewRequest("GET", endpoint_env, nil)
 	req.Host = host_env
 	fmt.Printf("Would send the request to %s now am gonna send it %s\n", endpoint, endpoint_env)

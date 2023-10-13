@@ -72,23 +72,24 @@ type MeasureArgs struct {
 }
 
 type ScaleArgs struct {
-	Svc              string
-	SvcRange         string
-	Namespace        string
-	SvcPrefix        string
-	NamespaceRange   string
-	NamespacePrefix  string
-	Concurrency      int
-	MaxRetries       int
-	RequestInterval  time.Duration
-	RequestTimeout   time.Duration
-	ResolvableDomain bool
-	Verbose          bool
-	Output           string
-	Https            bool
-	Iterations       int
-	TimeInterval     time.Duration
-	StableWindow     string
+	Svc                string
+	SvcRange           string
+	Namespace          string
+	SvcPrefix          string
+	NamespaceRange     string
+	NamespacePrefix    string
+	Concurrency        int
+	MaxRetries         int
+	RequestInterval    time.Duration
+	RequestTimeout     time.Duration
+	ScaleClientTimeout time.Duration
+	ResolvableDomain   bool
+	Verbose            bool
+	Output             string
+	Https              bool
+	Iterations         int
+	TimeInterval       time.Duration
+	StableWindow       string
 }
 
 type LoadArgs struct {
