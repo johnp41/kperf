@@ -261,7 +261,7 @@ func runScaleFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Sc
 	host_env := svc.Status.RouteStatusFields.URL.URL().Host
 
 	//Give timeout to client
-	client := http.Client{Timeout: 2 * time.Second}
+	client := http.Client{Timeout: inputs.ScaleClientTimeout}
 
 	req, _ := http.NewRequest("GET", endpoint_env, nil)
 	req.Host = host_env
@@ -327,6 +327,13 @@ func Poll(httpClient http.Client, request *http.Request, maxRetries int, request
 			StatusCode: rawResp.StatusCode,
 			Header:     rawResp.Header,
 			Body:       body,
+		}
+
+		//Check if something wrong with response
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			message := "The response was " + resp.Status
+			fmt.Printf(message)
+			return true, errors.New(message)
 		}
 
 		return true, nil
