@@ -179,7 +179,7 @@ func scaleAndMeasure(ctx context.Context, params *pkg.PerfParams, inputs pkg.Sca
 	// For every service a go func to
 	// update stable window,
 	// initial scale
-	//and start a go fun for  Poll(client, req, inputs.MaxRetries, inputs.RequestInterval,
+	// and start a go fun for  Poll(client, req, inputs.MaxRetries, inputs.RequestInterval,
 	// inputs.RequestTimeout, endpoint_env)
 	for i := 0; i < count; i++ {
 		go func(ndx int, m *sync.Mutex) {
@@ -265,6 +265,7 @@ func runScaleFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Sc
 
 	req, _ := http.NewRequest("GET", endpoint_env, nil)
 	req.Host = host_env
+
 	fmt.Printf("Would send the request to %s now am gonna send it %s\n", endpoint, endpoint_env)
 	fmt.Printf("The header %s would be now will be %s\n", svc.Status.RouteStatusFields.URL.URL().Host, host_env)
 
@@ -272,7 +273,7 @@ func runScaleFromZero(ctx context.Context, params *pkg.PerfParams, inputs pkg.Sc
 	go func() {
 		_, err = Poll(client, req, inputs.MaxRetries, inputs.RequestInterval, inputs.RequestTimeout, endpoint_env)
 		if err != nil {
-			m := fmt.Sprintf("the endpoint for Route %q at %q didn't serve the expected text %v", svc.Name, endpoint_env, err)
+			m := fmt.Sprintf("the endpoint for Route %q at %q didn't serve the expected text %v \n", svc.Name, endpoint_env, err)
 			log.Println(m)
 			errch <- errors.New(m)
 			return
@@ -332,7 +333,7 @@ func Poll(httpClient http.Client, request *http.Request, maxRetries int, request
 		//Check if something wrong with response
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			message := "The response was " + resp.Status
-			fmt.Printf(message)
+			fmt.Printf(message + "\n")
 			return true, errors.New(message)
 		}
 
@@ -340,7 +341,7 @@ func Poll(httpClient http.Client, request *http.Request, maxRetries int, request
 	})
 
 	if err != nil {
-		return resp, fmt.Errorf("response did not pass checks %s", err)
+		return resp, fmt.Errorf("Response did not pass checks %s ", err)
 	}
 
 	return resp, nil
