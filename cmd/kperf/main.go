@@ -15,13 +15,32 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"syscall"
+	"unsafe"
 
 	"knative.dev/kperf/core"
 )
 
 func main() {
+	var mask uintptr
+
+	// Get the current CPU affinity of the process
+	if _, _, err := syscall.RawSyscall(syscall.SYS_SCHED_GETAFFINITY, 0, uintptr(unsafe.Sizeof(mask)), uintptr(unsafe.Pointer(&mask))); err != 0 {
+		fmt.Println("Failed to get CPU affinity:", err)
+		return
+	}
+	fmt.Println("Current CPU affinity:", mask)
+
+	// Set the new CPU affinity
+	mask = 1
+	if _, _, err := syscall.RawSyscall(syscall.SYS_SCHED_SETAFFINITY, 0, uintptr(unsafe.Sizeof(mask)), uintptr(unsafe.Pointer(&mask))); err != 0 {
+		fmt.Println("Failed to set CPU affinity:", err)
+		return
+	}
+
 	if err := core.NewPerfCommand().Execute(); err != nil {
 		log.Println("failed to execute kperf command:", err)
 		os.Exit(1)
